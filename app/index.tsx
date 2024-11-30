@@ -3,15 +3,13 @@ import React from "react";
 import { Dimensions, View, StyleSheet } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import { participantsData } from "../../dummyData";
+import { allMessages, participantsData } from "../dummyData";
+import ParticipantList from "@/components/HomeScreenComponents/ParticipantList";
+import VerticalMessageList from "@/components/HomeScreenComponents/VerticalMessageList";
 const { width, height } = Dimensions.get("window");
 
 const HomeScreen = () => {
-  return (
-    <SafeAreaView style={{}}>
-      <AvatarStoryList onAvatarPress={() => {}} data={participantsData} />
-    </SafeAreaView>
-  );
+  return <VerticalMessageList onMessagePress={() => {}} data={allMessages} />;
 };
 
 const styles = StyleSheet.create({
