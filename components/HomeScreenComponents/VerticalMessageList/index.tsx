@@ -1,5 +1,5 @@
 import Avatar from "@/components/common/Avatar";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   FlatList,
@@ -9,9 +9,10 @@ import {
   Image,
 } from "react-native";
 import moment from "moment";
+import { useMessageStore } from "@/store/useMessageStore";
+import axios from "axios";
 
 type MessageListProps = {
-  data: Array<MessageData>;
   onMessagePress: (item: MessageData) => void;
 };
 
@@ -32,17 +33,47 @@ type MessageData = {
   replyToMessage?: Omit<MessageData, "replyToMessageUuid">;
   updateAt: number;
 };
+const NEW_MESSAGES_CHECK_INTERVAL = 10000; // 10 seconds
 
-const StyledMessageList: React.FC<MessageListProps> = ({
-  data,
-  onMessagePress,
-}) => {
+const StyledMessageList: React.FC<MessageListProps> = ({ onMessagePress }) => {
+  const {
+    messages: data,
+    fetchMessages,
+    fetchOlderMessages,
+    checkForNewMessages,
+    newMessagesAvailable,
+    setNewMessagesAvailable,
+  } = useMessageStore();
+  const flatListRef = useRef(null);
+
+  useEffect(() => {
+    fetchMessages(); // Fetch initial messages when component mounts
+
+    const interval = setInterval(async () => {
+      const hasNewMessages = await checkForNewMessages();
+      if (hasNewMessages) {
+        setNewMessagesAvailable(true);
+      }
+    }, NEW_MESSAGES_CHECK_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [fetchMessages, checkForNewMessages, setNewMessagesAvailable]);
+
+  const loadOlderMessages = async () => {
+    if (data.length === 0) return;
+    await fetchOlderMessages(data[0].uuid);
+  };
+
+  useEffect(() => {
+    fetchMessages(); // Fetch messages when component mounts
+  }, [fetchMessages]);
+
   const renderDateSeparator = (date: string) => (
     <View style={styles.dateSeparatorContainer}>
       <Text style={styles.dateSeparatorText}>{date}</Text>
     </View>
   );
-
+  console.log(newMessagesAvailable);
   const renderMessageItem = ({ item }: { item: MessageData }) => (
     <TouchableOpacity
       style={styles.messageContainer}
@@ -139,12 +170,15 @@ const StyledMessageList: React.FC<MessageListProps> = ({
   return (
     <View style={styles.container}>
       <FlatList
+        ref={flatListRef}
         data={flatData}
         renderItem={renderItem}
         keyExtractor={(item) =>
           item.type === "date" ? item.date! : item.message!.uuid
         }
         showsVerticalScrollIndicator={true}
+        onEndReached={loadOlderMessages}
+        onEndReachedThreshold={0.5}
       />
     </View>
   );

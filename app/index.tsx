@@ -18,11 +18,10 @@ const HomeScreen = () => {
   return (
     <View>
       <VerticalMessageList
-        onLongMessagePress={() => {
-          onOpen();
-        }}
+        // onLongMessagePress={() => {
+        //   onOpen();
+        // }}
         onMessagePress={() => {}}
-        data={allMessages}
       />
       <Modalize modalHeight={height * 0.2} ref={modalizeRef}>
         <View style={{ flex: 1, backgroundColor: "#2c2f33" }}></View>
