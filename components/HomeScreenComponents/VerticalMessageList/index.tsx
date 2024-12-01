@@ -55,7 +55,9 @@ const StyledMessageList: React.FC<MessageListProps> = ({
         />
         <View style={styles.messageContent}>
           <View style={{ flexDirection: "row" }}>
-            <Text style={styles.messageAuthor}>Jashan</Text>
+            <Text style={styles.messageAuthor}>
+              {item.authorUuid?.slice(5, 10)}
+            </Text>
             <Text style={styles.messageTime}>
               {moment(item.updateAt ?? item.sentAt).format("hh:mm A")}
             </Text>
