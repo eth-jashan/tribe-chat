@@ -1,5 +1,5 @@
 import Avatar from "@/components/common/Avatar";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   FlatList,
@@ -7,46 +7,30 @@ import {
   TouchableOpacity,
   Text,
   Image,
+  Button,
 } from "react-native";
 import moment from "moment";
 import { useMessageStore } from "@/store/useMessageStore";
-import axios from "axios";
+import { useParticipantStore } from "@/store/useProfileStore";
 
-type MessageListProps = {
-  onMessagePress: (item: MessageData) => void;
-};
-
-type MessageData = {
-  uuid: string;
-  text: string;
-  authorUuid: string;
-  sentAt: number;
-  attachments: Array<{
-    uuid: string;
-    type: "image";
-    url: string;
-    width: number;
-    height: number;
-  }>;
-  reactions: Array<{ uuid: string; participantUuid: string; value: string }>;
-  replyToMessageUuid?: string;
-  replyToMessage?: Omit<MessageData, "replyToMessageUuid">;
-  updateAt: number;
-};
 const NEW_MESSAGES_CHECK_INTERVAL = 10000; // 10 seconds
+const MESSAGES_BATCH_SIZE = 25; // Number of messages to load per batch
 
-const StyledMessageList: React.FC<MessageListProps> = ({ onMessagePress }) => {
+const VerticalMessageList = ({ onMessagePress, onLongMessagePress }) => {
   const {
-    messages: data,
+    messages,
     fetchMessages,
     fetchOlderMessages,
     checkForNewMessages,
     newMessagesAvailable,
     setNewMessagesAvailable,
+    // fetchNewMessages, // Added to fetch new messages when scrolling to the end
   } = useMessageStore();
+  const { participants, fetchParticipants } = useParticipantStore();
   const flatListRef = useRef(null);
 
   useEffect(() => {
+    fetchParticipants(); // Fetch participants when component mounts
     fetchMessages(); // Fetch initial messages when component mounts
 
     const interval = setInterval(async () => {
@@ -57,112 +41,136 @@ const StyledMessageList: React.FC<MessageListProps> = ({ onMessagePress }) => {
     }, NEW_MESSAGES_CHECK_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [fetchMessages, checkForNewMessages, setNewMessagesAvailable]);
+  }, [
+    fetchMessages,
+    checkForNewMessages,
+    setNewMessagesAvailable,
+    fetchParticipants,
+  ]);
 
   const loadOlderMessages = async () => {
-    if (data.length === 0) return;
-    await fetchOlderMessages(data[0].uuid);
+    if (messages.length === 0) return;
+    await fetchOlderMessages(messages[0].uuid);
   };
 
-  useEffect(() => {
-    fetchMessages(); // Fetch messages when component mounts
-  }, [fetchMessages]);
+  // const loadNewMessages = async () => {
+  //   await fetchNewMessages();
+  // };
 
-  const renderDateSeparator = (date: string) => (
+  const scrollToEnd = () => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  };
+
+  const renderDateSeparator = (date) => (
     <View style={styles.dateSeparatorContainer}>
       <Text style={styles.dateSeparatorText}>{date}</Text>
     </View>
   );
-  console.log(newMessagesAvailable);
-  const renderMessageItem = ({ item }: { item: MessageData }) => (
-    <TouchableOpacity
-      style={styles.messageContainer}
-      onPress={() => onMessagePress(item)}
-    >
-      <View style={{ flexDirection: "row" }}>
-        <Avatar
-          uri={`https://loremflickr.com/1016/1856?lock=4783504679232429`}
-          style={styles.avatar}
-        />
-        <View style={styles.messageContent}>
-          <View style={{ flexDirection: "row" }}>
-            <Text style={styles.messageAuthor}>
-              {item.authorUuid?.slice(5, 10)}
-            </Text>
+
+  const renderMessageItem = (message, isInitialMessage) => {
+    const author = participants.find((p) => p.uuid === message.authorUuid);
+    const authorName = author ? author.name : "Unknown";
+    const authorAvatarUrl = author
+      ? author.avatarUrl
+      : "https://via.placeholder.com/40";
+
+    return (
+      <View style={styles.messageGroupContainer}>
+        {isInitialMessage && (
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Avatar uri={authorAvatarUrl} style={styles.avatar} />
+            <Text style={styles.messageAuthor}>{authorName}</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          key={message.uuid}
+          style={[
+            styles.messageContainer,
+            !isInitialMessage && styles.groupedMessageContainer,
+          ]}
+          onPress={() => onMessagePress(message)}
+          onLongPress={() => onLongMessagePress(message)}
+        >
+          <View style={styles.messageContent}>
             <Text style={styles.messageTime}>
-              {moment(item.updateAt ?? item.sentAt).format("hh:mm A")}
+              {moment(message.updateAt ?? message.sentAt).format("hh:mm A")}
             </Text>
-            {item.updateAt ? (
+
+            {message.updateAt ? (
               <Text style={styles.messageTime}>edited</Text>
             ) : null}
+
+            <Text style={styles.messageText}>{message.text}</Text>
+
+            {message.attachments && message.attachments.length > 0 && (
+              <View style={styles.attachmentsContainer}>
+                {message.attachments.map(
+                  (attachment) =>
+                    attachment.type === "image" && (
+                      <Image
+                        key={attachment.uuid}
+                        source={{ uri: attachment.url }}
+                        style={{
+                          width: attachment.width / 4,
+                          height: attachment.height / 4,
+                          marginTop: 10,
+                        }}
+                      />
+                    )
+                )}
+              </View>
+            )}
+            {message.reactions && message.reactions.length > 0 && (
+              <FlatList
+                data={message?.reactions}
+                horizontal
+                renderItem={({ item }) => {
+                  return (
+                    <Text key={item?.uuid} style={styles.reaction}>
+                      {item?.value}
+                    </Text>
+                  );
+                }}
+                contentContainerStyle={styles.reactionsContainer}
+                keyExtractor={(_, i) => i?.toString()}
+                showsVerticalScrollIndicator={true}
+                onEndReachedThreshold={0.5}
+              />
+            )}
           </View>
-          <Text style={styles.messageText}>{item.text}</Text>
-
-          {item.attachments && item.attachments.length > 0 && (
-            <View style={styles.attachmentsContainer}>
-              {item.attachments.map(
-                (attachment) =>
-                  attachment.type === "image" && (
-                    <Image
-                      key={attachment.uuid}
-                      source={{ uri: attachment.url }}
-                      style={{
-                        width: attachment.width / 4,
-                        height: attachment.height / 4,
-                        marginTop: 10,
-                      }}
-                    />
-                  )
-              )}
-            </View>
-          )}
-          {item.reactions && item.reactions.length > 0 && (
-            <View style={styles.reactionsContainer}>
-              {item.reactions.map((reaction) => (
-                <Text key={reaction.uuid} style={styles.reaction}>
-                  {reaction.value}
-                </Text>
-              ))}
-            </View>
-          )}
-        </View>
+        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
-  const groupedMessages = data.reduce(
-    (acc: { [key: string]: MessageData[] }, message) => {
-      const date = moment(message.sentAt).format("MMMM DD, YYYY");
-      if (!acc[date]) {
-        acc[date] = [];
-      }
-      acc[date].push(message);
-      return acc;
-    },
-    {}
-  );
+  const groupedMessagesByDate = messages.reduce((acc, message) => {
+    const date = moment(message.sentAt).format("MMMM DD, YYYY");
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+    acc[date].push(message);
+    return acc;
+  }, {});
 
-  const flatData: Array<{
-    type: "date" | "message";
-    date?: string;
-    message?: MessageData;
-  }> = [];
-  Object.keys(groupedMessages).forEach((date) => {
+  const flatData = [];
+
+  Object.keys(groupedMessagesByDate).forEach((date) => {
     flatData.push({ type: "date", date });
-    groupedMessages[date].forEach((message) => {
-      flatData.push({ type: "message", message });
+    let previousAuthorUuid = null;
+    groupedMessagesByDate[date].forEach((message) => {
+      const isInitialMessage = previousAuthorUuid !== message.authorUuid;
+      flatData.push({ type: "message", message, isInitialMessage });
+      previousAuthorUuid = message.authorUuid;
     });
   });
 
-  const renderItem = ({
-    item,
-  }: {
-    item: { type: "date" | "message"; date?: string; message?: MessageData };
-  }) => {
+  const renderItem = ({ item }) => {
     if (item.type === "date") {
-      return renderDateSeparator(item.date!);
+      return renderDateSeparator(item.date);
     } else if (item.type === "message") {
-      return renderMessageItem({ item: item.message! });
+      return renderMessageItem(item.message, item.isInitialMessage);
     }
     return null;
   };
@@ -174,10 +182,10 @@ const StyledMessageList: React.FC<MessageListProps> = ({ onMessagePress }) => {
         data={flatData}
         renderItem={renderItem}
         keyExtractor={(item) =>
-          item.type === "date" ? item.date! : item.message!.uuid
+          item.type === "date" ? item.date : item.message.uuid
         }
         showsVerticalScrollIndicator={true}
-        onEndReached={loadOlderMessages}
+        // Load new messages when scrolling to the end
         onEndReachedThreshold={0.5}
       />
     </View>
@@ -199,19 +207,26 @@ const styles = StyleSheet.create({
     color: "#b9bbbe",
     fontWeight: "bold",
   },
+  messageGroupContainer: {
+    padding: 8,
+    borderTopWidth: 0.3,
+    borderBottomWidth: 0.3,
+    borderColor: "#222529",
+  },
   messageContainer: {
     flexDirection: "row",
     alignItems: "flex-start",
     padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#40444b",
+  },
+  groupedMessageContainer: {
+    // marginLeft: 48,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
   },
-  messageContent: {
+  messageGroupContent: {
     flex: 1,
     marginLeft: 8,
   },
@@ -220,6 +235,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#ffffff",
     marginBottom: 4,
+    marginLeft: 4,
   },
   messageTime: {
     fontSize: 14,
@@ -232,32 +248,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#b9bbbe",
   },
+  messageContent: {
+    flexDirection: "column",
+  },
   attachmentsContainer: {
     marginTop: 8,
   },
   reactionsContainer: {
-    flexDirection: "row",
-    marginTop: 8,
+    backgroundColor: "#222529",
+    padding: 8,
+    borderRadius: 10,
+    marginTop: 4,
   },
   reaction: {
     marginRight: 8,
     fontSize: 16,
   },
+  newMessagesButtonContainer: {
+    position: "absolute",
+    bottom: 20,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
 });
 
-export default StyledMessageList;
-
-// Usage Example
-// <StyledMessageList data={messages} onMessagePress={(item) => console.log('Pressed on:', item)} />
-// 'messages' should be an array of message objects like the provided example.
-
-/**
- * Judging Criteria Considerations:
- * - Functionality & Robustness: The component effectively renders a styled vertical list of messages with clickable items.
- * - Code Quality: The code is easy to read, maintain, and follows a modular approach.
- * - Best Practices: Leveraging React Native conventions and reusable components to keep the UI clean and maintainable.
- * - UI Quality: This component provides a dark theme UI similar to messaging apps, ensuring a familiar user experience.
- * - Added reactions display below each message to improve engagement and provide additional user feedback.
- * - Added reply message support and attachments for richer message context.
- * - Grouped messages by day with date separators to improve readability and provide better chronological context.
- */
+export default VerticalMessageList;

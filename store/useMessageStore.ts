@@ -62,9 +62,9 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       );
       const olderMessages = response.data;
 
-      // Add older messages to the existing messages
+      // Add newer messages to the existing messages
       set((state) => ({
-        messages: [...state.messages, ...olderMessages],
+        messages: [...olderMessages, ...state.messages],
       }));
     } catch (error) {
       console.error("Error fetching older messages:", error);
