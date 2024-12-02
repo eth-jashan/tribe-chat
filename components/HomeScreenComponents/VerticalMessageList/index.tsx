@@ -13,49 +13,31 @@ import moment from "moment";
 import { useMessageStore } from "@/store/useMessageStore";
 import { useParticipantStore } from "@/store/useProfileStore";
 
-const NEW_MESSAGES_CHECK_INTERVAL = 10000; // 10 seconds
-const MESSAGES_BATCH_SIZE = 25; // Number of messages to load per batch
-
 const VerticalMessageList = ({ onMessagePress, onLongMessagePress }) => {
   const {
     messages,
     fetchMessages,
     fetchOlderMessages,
-    checkForNewMessages,
-    newMessagesAvailable,
+    fetchNewerMessages,
     setNewMessagesAvailable,
-    // fetchNewMessages, // Added to fetch new messages when scrolling to the end
   } = useMessageStore();
   const { participants, fetchParticipants } = useParticipantStore();
   const flatListRef = useRef(null);
 
   useEffect(() => {
-    fetchParticipants(); // Fetch participants when component mounts
-    fetchMessages(); // Fetch initial messages when component mounts
-
-    const interval = setInterval(async () => {
-      const hasNewMessages = await checkForNewMessages();
-      if (hasNewMessages) {
-        setNewMessagesAvailable(true);
-      }
-    }, NEW_MESSAGES_CHECK_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [
-    fetchMessages,
-    checkForNewMessages,
-    setNewMessagesAvailable,
-    fetchParticipants,
-  ]);
+    fetchParticipants();
+    fetchMessages();
+    scrollToEnd();
+  }, [fetchMessages, setNewMessagesAvailable, fetchParticipants]);
 
   const loadOlderMessages = async () => {
     if (messages.length === 0) return;
     await fetchOlderMessages(messages[0].uuid);
   };
-
-  // const loadNewMessages = async () => {
-  //   await fetchNewMessages();
-  // };
+  const loadNewerMessages = async () => {
+    if (messages.length === 0) return;
+    await fetchNewerMessages();
+  };
 
   const scrollToEnd = () => {
     if (flatListRef.current) {
@@ -68,6 +50,36 @@ const VerticalMessageList = ({ onMessagePress, onLongMessagePress }) => {
       <Text style={styles.dateSeparatorText}>{date}</Text>
     </View>
   );
+
+  const renderReplyMessage = (replyToMessage) => {
+    const author = participants.find(
+      (p) => p.uuid === replyToMessage.authorUuid
+    );
+    const authorName = author ? author.name : "Unknown";
+
+    return (
+      <View style={styles.replyContainer}>
+        <Text style={styles.replyAuthor}>{authorName} replied:</Text>
+        <Text style={styles.replyText}>{replyToMessage.text}</Text>
+        {replyToMessage.reactions && replyToMessage.reactions.length > 0 && (
+          <FlatList
+            data={replyToMessage.reactions}
+            horizontal
+            renderItem={({ item }) => {
+              return (
+                <Text key={item.uuid} style={styles.reaction}>
+                  {item.value}
+                </Text>
+              );
+            }}
+            contentContainerStyle={styles.reactionsContainer}
+            keyExtractor={(item) => item.uuid}
+            showsHorizontalScrollIndicator={true}
+          />
+        )}
+      </View>
+    );
+  };
 
   const renderMessageItem = (message, isInitialMessage) => {
     const author = participants.find((p) => p.uuid === message.authorUuid);
@@ -94,6 +106,8 @@ const VerticalMessageList = ({ onMessagePress, onLongMessagePress }) => {
           onLongPress={() => onLongMessagePress(message)}
         >
           <View style={styles.messageContent}>
+            {message.replyToMessage &&
+              renderReplyMessage(message.replyToMessage)}
             <Text style={styles.messageTime}>
               {moment(message.updateAt ?? message.sentAt).format("hh:mm A")}
             </Text>
@@ -128,15 +142,14 @@ const VerticalMessageList = ({ onMessagePress, onLongMessagePress }) => {
                 horizontal
                 renderItem={({ item }) => {
                   return (
-                    <Text key={item?.uuid} style={styles.reaction}>
-                      {item?.value}
+                    <Text key={item.uuid} style={styles.reaction}>
+                      {item.value}
                     </Text>
                   );
                 }}
                 contentContainerStyle={styles.reactionsContainer}
-                keyExtractor={(_, i) => i?.toString()}
-                showsVerticalScrollIndicator={true}
-                onEndReachedThreshold={0.5}
+                keyExtractor={(item) => item.uuid}
+                showsHorizontalScrollIndicator={true}
               />
             )}
           </View>
@@ -185,7 +198,10 @@ const VerticalMessageList = ({ onMessagePress, onLongMessagePress }) => {
           item.type === "date" ? item.date : item.message.uuid
         }
         showsVerticalScrollIndicator={true}
-        // Load new messages when scrolling to the end
+        onEndReached={() => {
+          loadNewerMessages();
+        }}
+        onStartReachedThreshold={0.5}
         onEndReachedThreshold={0.5}
       />
     </View>
@@ -224,10 +240,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
   },
-  messageGroupContent: {
-    flex: 1,
-    marginLeft: 8,
-  },
   messageAuthor: {
     fontSize: 14,
     fontWeight: "bold",
@@ -237,7 +249,6 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 14,
-    fontWeight: "light",
     color: "#ffffff",
     marginBottom: 4,
     marginLeft: 4,
@@ -246,8 +257,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#b9bbbe",
   },
-  messageContent: {
-    flexDirection: "column",
+  replyContainer: {
+    backgroundColor: "#3e4147",
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  replyAuthor: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#ffffff",
+    marginBottom: 4,
+  },
+  replyText: {
+    fontSize: 16,
+    color: "#b9bbbe",
   },
   attachmentsContainer: {
     marginTop: 8,
@@ -261,13 +285,6 @@ const styles = StyleSheet.create({
   reaction: {
     marginRight: 8,
     fontSize: 16,
-  },
-  newMessagesButtonContainer: {
-    position: "absolute",
-    bottom: 20,
-    left: 0,
-    right: 0,
-    alignItems: "center",
   },
 });
 

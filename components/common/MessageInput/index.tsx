@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { TextInput } from "react-native-gesture-handler";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -8,17 +8,21 @@ type MessageInputProps = {};
 const MessageInput: React.FC<MessageInputProps> = ({}) => {
   return (
     <View style={styles.messageInputContainer}>
-      <TextInput placeholder="Text your message" style={styles.inputBox} />
-      <View style={styles.sendBtn}>
+      <TextInput
+        placeholderTextColor={`#b9bbbe`}
+        placeholder="Message # 😇 | tribe-chat"
+        style={styles.inputBox}
+      />
+      <TouchableOpacity style={styles.sendBtn}>
         <Ionicons name="send" size={24} color="black" />
-      </View>
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   messageInputContainer: {
-    position: "absolute",
+    position: "fixed",
     padding: 8,
     width: "100%",
     backgroundColor: "#222529",
@@ -27,10 +31,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   inputBox: {
-    flex: 0.98,
+    flex: 1,
     borderRadius: 12,
     backgroundColor: "black",
     height: 40,
+    fontSize: 16,
+    color: "#b9bbbe",
+    paddingLeft: 8,
   },
   sendBtn: {
     height: 40,
@@ -39,6 +46,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 8,
   },
 });
 

@@ -25,7 +25,7 @@ type MessageStore = {
   newMessagesAvailable: boolean;
   fetchMessages: () => Promise<void>;
   fetchOlderMessages: (refMessageUuid: string) => Promise<void>;
-  checkForNewMessages: () => Promise<boolean>;
+  fetchNewerMessages: () => Promise<void>;
   setNewMessagesAvailable: (value: boolean) => void;
   addMessage: (message: MessageData) => void;
   clearMessages: () => void;
@@ -62,7 +62,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       );
       const olderMessages = response.data;
 
-      // Add newer messages to the existing messages
+      // Add older messages to the existing messages
       set((state) => ({
         messages: [...olderMessages, ...state.messages],
       }));
@@ -72,16 +72,21 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   },
 
   // Check for new messages to determine if new content is available
-  checkForNewMessages: async () => {
+  fetchNewerMessages: async () => {
     try {
       const latestMessageTimestamp = get().messages[0]?.sentAt || 0;
       const response = await axios.get(
         `http://dummy-chat-server.tribechat.pro/api/messages/updates/${latestMessageTimestamp}`
       );
-      return response.data.length > 0;
+      const newerMessages = response.data;
+
+      // Add newer messages to the existing messages
+      set((state) => ({
+        messages: [...state.messages, ...newerMessages],
+      }));
     } catch (error) {
       console.error("Error checking for new messages:", error);
-      return false;
+      // return false;
     }
   },
 

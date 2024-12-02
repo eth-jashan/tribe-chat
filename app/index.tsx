@@ -1,6 +1,12 @@
 import AvatarStoryList from "@/components/HomeScreenComponents/AvatarStoryList";
 import React, { useRef, useState } from "react";
-import { Dimensions, View, StyleSheet } from "react-native";
+import {
+  Dimensions,
+  View,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { allMessages, participantsData } from "../dummyData";
@@ -38,11 +44,17 @@ const HomeScreen = () => {
           />
         )}
       />
-      <VerticalMessageList
-        onLongMessagePress={() => {}}
-        onMessagePress={(message) => onOpenMessageLongPress(message)}
-      />
-      <MessageInput />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={40} // Adjust this value as per your header height
+      >
+        <VerticalMessageList
+          onLongMessagePress={() => {}}
+          onMessagePress={(message) => onOpenMessageLongPress(message)}
+        />
+        <MessageInput />
+      </KeyboardAvoidingView>
       <Modalize modalHeight={height * 0.9} ref={modalizeParticipantRef}>
         <ParticipantList
           onParticipantPress={() => console.log("Participant Pressed !!!!!!")}
