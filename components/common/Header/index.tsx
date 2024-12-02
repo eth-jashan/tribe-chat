@@ -27,6 +27,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: "#2c2f33",
     padding: 10,
+    borderBottomWidth: 1,
+    borderColor: "#222529",
   },
   leftIconButton: {
     marginRight: 10,

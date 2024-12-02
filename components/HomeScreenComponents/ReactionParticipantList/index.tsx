@@ -1,5 +1,4 @@
 import Avatar from "@/components/common/Avatar";
-import { Participant } from "@/constants/commonTypes";
 import { useParticipantStore } from "@/store/useProfileStore";
 import React from "react";
 import {
@@ -11,31 +10,49 @@ import {
 } from "react-native";
 
 type VerticalParticipantListProps = {
-  onParticipantPress: (item: Participant) => void;
+  reactions: Array<{
+    uuid: string;
+    participantUuid: string;
+    value: string;
+  }>;
 };
 
-const ParticipantList: React.FC<VerticalParticipantListProps> = ({
-  onParticipantPress,
+const ReactionParticipantList: React.FC<VerticalParticipantListProps> = ({
+  reactions,
 }) => {
   const { participants } = useParticipantStore();
 
-  const renderParticipantItem = ({ item }: { item: Participant }) => (
-    <TouchableOpacity
-      style={styles.participantContainer}
-      onPress={() => onParticipantPress(item)}
-    >
-      <Avatar uri={item.avatarUrl} style={styles.avatar} />
-      <View style={styles.participantContent}>
-        <Text style={styles.participantName}>{item.name}</Text>
-        {item.bio && <Text style={styles.participantBio}>{item.bio}</Text>}
-      </View>
-    </TouchableOpacity>
-  );
+  const renderParticipantItem = ({
+    item,
+  }: {
+    item: {
+      uuid: string;
+      participantUuid: string;
+      value: string;
+    };
+  }) => {
+    const currentParticipant = participants.filter(
+      (x) => x.uuid === item.participantUuid
+    );
+    return (
+      <TouchableOpacity style={styles.participantContainer}>
+        <Avatar uri={currentParticipant[0].avatarUrl} style={styles.avatar} />
+        <View style={styles.participantContent}>
+          <Text style={styles.participantName}>
+            {currentParticipant[0].name}
+          </Text>
+          {item.value && (
+            <Text style={styles.participantBio}>{item.value}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={participants}
+        data={reactions}
         renderItem={renderParticipantItem}
         keyExtractor={(item) => item.uuid}
         showsVerticalScrollIndicator={true}
@@ -77,7 +94,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ParticipantList;
+export default ReactionParticipantList;
 
 // Usage Example
 // <VerticalParticipantList data={participants} onParticipantPress={(item) => console.log('Pressed on:', item)} />

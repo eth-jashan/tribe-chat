@@ -1,5 +1,5 @@
 import AvatarStoryList from "@/components/HomeScreenComponents/AvatarStoryList";
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Dimensions, View, StyleSheet } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,27 +9,47 @@ import VerticalMessageList from "@/components/HomeScreenComponents/VerticalMessa
 import { Modalize } from "react-native-modalize";
 import Header from "@/components/common/Header";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import MessageInput from "@/components/common/MessageInput";
+import ReactionParticipantList from "@/components/HomeScreenComponents/ReactionParticipantList";
 const { width, height } = Dimensions.get("window");
 
 const HomeScreen = () => {
   const modalizeMessageRef = useRef<Modalize>(null);
+  const modalizeParticipantRef = useRef<Modalize>(null);
+  const [currentOpenedMessage, setOpenedMessage] = useState(false);
 
-  const onOpenMessageLongPress = () => {
+  const onOpenMessageLongPress = (message) => {
     modalizeMessageRef.current?.open();
+    setOpenedMessage(message);
   };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
         title="#tribe-chat"
-        rightIcon={() => <FontAwesome name="group" size={20} color="white" />}
+        rightIcon={() => (
+          <FontAwesome
+            onPress={() => {
+              modalizeParticipantRef.current?.open();
+            }}
+            name="group"
+            size={20}
+            color="white"
+          />
+        )}
       />
       <VerticalMessageList
-        onLongMessagePress={() => onOpenMessageLongPress()}
-        onMessagePress={() => {}}
+        onLongMessagePress={() => {}}
+        onMessagePress={(message) => onOpenMessageLongPress(message)}
       />
-
-      <Modalize modalHeight={height * 0.2} ref={modalizeMessageRef}>
-        <View style={{ flex: 1, backgroundColor: "#2c2f33" }}></View>
+      <MessageInput />
+      <Modalize modalHeight={height * 0.9} ref={modalizeParticipantRef}>
+        <ParticipantList
+          onParticipantPress={() => console.log("Participant Pressed !!!!!!")}
+        />
+      </Modalize>
+      <Modalize modalHeight={height * 0.3} ref={modalizeMessageRef}>
+        <ReactionParticipantList reactions={currentOpenedMessage?.reactions} />
       </Modalize>
     </SafeAreaView>
   );

@@ -218,9 +218,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     padding: 10,
   },
-  groupedMessageContainer: {
-    // marginLeft: 48,
-  },
+  groupedMessageContainer: {},
   avatar: {
     width: 40,
     height: 40,
